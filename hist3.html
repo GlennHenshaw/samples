@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!--<script src="https://d3js.org/d3.v4.js"></script>-->
+  <!--<script src="https://d3js.org/d3.v7.min.js"></script> -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+
+<style>
+	.bar {
+/*		fill:#ABDCFF;*/
+		fill:#91A2C2;
+/*		opacity:.5;*/
+/*	lovely red	#EA5455 */
+		
+	}
+	.bar-text{
+       /* fill:steelBlue; */
+      /*  stroke:000000;*/
+        text-anchor: middle;
+        fill:white;
+    }
+    #sizelabel {
+    	text-anchor: left;
+    	font-size:1.5em;
+    	fill:#13334c;
+    }
+    #mean-line {
+    	stroke:#7F0421;
+    	stroke-width:1;
+    	opacity:.6;
+
+    }
+    #median-line {
+    	stroke:#2B4D8D;
+    	stroke-width:1;
+    	opacity:.6;
+
+    }
+    #mean-text {
+    	text-anchor: middle;
+    	stroke:#7F0421;
+    	stroke-width:1;
+    }
+     #median-text {
+    	text-anchor: middle;
+    	stroke:#2B4D8D;
+    	stroke-width:1;
+    }
+    
+</style>
+
+
+
+
+</head>
+<body>
+    <form>
+       <select id = "selector" name=”color” onChange="chosen()">
+       <option value=”normal”>Normal</option>
+       <option value=”uniform”>Uniform </option>
+</select>
+    </form>
+
+	<form >
+         Sample Size : <input id = "size" type = "text" name = "size" value = "100" />
+         <br>
+         Precision (decimal places): <input id = "prec" type = "text" name = "size" value = "2" />
+         <br>
+         Population Mean: <input id = "mean" type = "text" name = "mu" value = "100" />
+         <br>
+         Population Standard Deviation: <input id = "std" type = "text" name = "std" value = "15" />
+      </form>
+	<form> 
+        <input type="button" onclick="generateSample()" value="Generate new sample">
+    </form>
+
+    <textarea name="numberlist" onkeypress="newData()" id="sampleText" cols="50" rows="5"></textarea>
+    <input type="button" value="Copy" onclick="copy_to_clipboard('sampleText');">
+
+    <form> 
+        <input type="button" id="viz" onclick="update()" value="Update">
+    </form>
+
+	<div id="chart">
+
+     
+
+    </div>
+
+	<script>
+		let margin = {top: 10, right: 30, bottom: 30, left: 40},
+        width = 600 - margin.left - margin.right,
+        height = 400 - margin.top - margin.bottom;
+
+     // append the svg object to the body of the page
+        
+
+        let svg = d3.select("#chart")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform",
+                     "translate(" + margin.left + "," + margin.top + ")");
+
+        let sizeLabel = svg.append("text").attr("id","sizelabel").attr("x",10).attr("y",20);
+        
+
+        function chosen(){
+        	console.log("hi you")
+        	console.log(document.getElementById("selector").value)
+        }
+        
+        
+
+        d3.select("#chart").on("click",function(event){
+
+          sample.push(xScale.invert(event.x-margin.left));
+          console.log(xScale.invert(event.x-margin.left));
+          displaySample(sample);
+          
+        })
+
+        
+        
+        let record = [];
+        let sample;
+        let test;
+        
+
+       
+
+        let xScale = d3.scaleLinear().range([0,width]);
+        let yScale = d3.scaleLinear().range([height,0]);
+
+        
+
+        let xAxis = svg.append("g")
+                       .attr("transform", "translate(0," + height + ")");
+
+        let yAxis = svg.append("g");
+        let yAxisGenerator = d3.axisLeft(yScale);       
+
+        
+        function copy_to_clipboard(id)
+        {
+           document.getElementById(id).select();
+           document.execCommand('copy');
+        }
+
+        function newData(){
+        	console.log("change");
+        	document.getElementById("#viz").disabled = false;
+
+        }
+
+
+        function generateSample(){
+
+        	let sample = [];
+    		let size = Number(document.getElementById("size").value);
+    		let mu = Number(document.getElementById("mean").value);
+    		let sigma = Number(document.getElementById("std").value);
+    		let prec = Number(document.getElementById("prec").value);
+    		
+
+            for (let i=0;i<size;i++){
+            	sample.push(d3.randomNormal(mu, sigma)());
+            	}
+            
+
+            displaySample(sample);
+            
+    	}
+
+    	 function displaySample(sample){
+        	let sampleStrings = [];
+
+        	sizeLabel.text(`sample size: ${sample.length}`);
+
+            let prec = Number(document.getElementById("prec").value);
+
+            for (num of sample){
+                sampleStrings.push(num.toFixed(prec))
+            }
+            document.getElementById("sampleText").value = sampleStrings
+            update();
+        	return;
+        }
+
+        function getSample(){
+    		let sampleStrings = document.getElementById("sampleText")
+    		                            .value.split(",");
+    		return sampleStrings.map(function(d){return Number(d)});
+
+    	}
+
+    	function update(){
+
+    		sample = getSample();
+
+    		document.getElementById("viz").disabled = false;
+
+    	    d3.select("#mean-line").remove();
+    	    d3.select("#median-line").remove();
+    	    d3.select("#mean-text").remove();
+    	    d3.select("#median-text").remove();
+
+    		let q1 = d3.quantile(sample,.25);
+    		let q2 = d3.quantile(sample,.50);
+    		let q3 = d3.quantile(sample,.70);
+
+    		let mean = d3.mean(sample);
+
+    		let iqr = q3-q1;
+
+
+
+    		let bin = d3.bin()
+                        //.domain(xScale.domain());
+                        
+            let binArray = bin(sample);
+
+            let xMin = d3.min(binArray,(d)=>d.x0);
+            let xMax = d3.max(binArray,(d)=>d.x1);
+
+            xScale.domain([xMin,xMax]).nice();
+
+            
+
+
+    		let xAxisGenerator = d3.axisBottom(xScale);
+            xAxis.call(xAxisGenerator);
+
+             
+    		//bin.domain(xScale.domain());
+    		//bin.thresholds(xScale.ticks());
+
+    		
+
+
+    		yScale.domain([0,1.5*d3.max(binArray,(d)=>d.length)]);
+            yAxis.call(yAxisGenerator);
+
+
+            
+                      
+
+            
+            let join = svg.selectAll("rect").data(binArray);
+            let textJoin = svg.selectAll(".bar-text").data(binArray);
+
+
+            join.enter().append("rect")
+               .attr("class","bar")
+               .attr("opacity","1")
+               .merge(join)
+               .attr("width",function(d){
+               	return xScale(d.x1) - xScale(d.x0)-2;
+               })
+               .attr("height",function(d){
+               	return height - yScale(d.length);
+               })
+               .attr("x",function(d){
+               	return xScale(d.x0);
+               })
+               .attr("y",function(d){
+               	return yScale(d.length);
+               })
+               .attr("rx",5)
+               .attr("ry",5)
+               .call(d3.drag()
+                        .on("start", function(d){
+                        	d3.select(this)
+                        	  .attr("opacity",".5");
+                            
+                        })
+                        .on("drag", function(event, d) {
+                             d3.select(this)
+                               .attr("y", yScale(Math.floor(yScale.invert(event.y))))
+                              .attr("opacity",".5")
+                               .attr("height",d3.max([height-yScale(Math.floor(yScale.invert(event.y))),0]));
+                             let index = binArray.indexOf(d);
+                             d3.select(`#bar${index}`).attr("y",yScale(Math.floor(yScale.invert(event.y)))+20);})
+                         .on("end",function(event, d) {
+                         	   let rect = d3.select(this);
+                         	   rect.attr("opacity",1);
+                         	   let y = rect.attr("y");
+                         	  //let h = d3.select(this).attr("height");
+                         	  let index = binArray.indexOf(d);
+                              let newBarLength = Math.ceil(yScale.invert(y));
+                              d.length = 0;
+                              for (let j=0;j<newBarLength;j++){
+                              	d[j] = d3.randomUniform(d.x0, d.x1-.01)();
+                              }
+                              sample = d3.merge([d3.filter(sample,function(x){return (x < d.x0)||(x >= d.x1)}),d.slice(0,)]);
+                              
+                              displaySample(sample);
+                             
+
+                          
+
+                              //d3.select(`#bar${index}`).text(function(d){return newBarLength});
+                              
+
+                          }));    
+                            // d3.select()
+                      //  .on("start.update drag.update end.update", update));
+                    
+
+
+            join.exit().remove();
+
+
+          textJoin.enter().append("text")
+                    .attr("class","bar-text")
+                    .attr("id",function(d,i){return `bar${i}`})
+                    .merge(textJoin)
+                    .attr("x",function(d){console.log(d.x0);
+                    	return xScale(d.x0) + .5*(xScale(d.x1) - xScale(d.x0)-2);})
+                    .attr("y",function(d){return yScale(d.length)+20;})
+                    .text(function(d){return `${((d.length/sample.length)*100).toFixed(0)}%`});
+
+            textJoin.exit().remove();
+
+            let meanLine = svg.append("line").attr("id","mean-line");
+            meanLine.attr("x1",xScale(mean))
+                              .attr("x2",xScale(mean))
+                              .attr("y1",yScale(0))
+                              .attr("y2",50)
+                              .attr("stroke-dasharray","5 ,5");
+            let meanText = svg.append("text").attr("id","mean-text")
+                              .attr("x",xScale(mean))
+                              .attr("y",40)
+                              .text(`mean = ${mean.toFixed(Number(document.getElementById("prec").value))}`);
+
+            
+            let medianLine = svg.append("line").attr("id","median-line");
+            medianLine.attr("x1",xScale(q2))
+                              .attr("x2",xScale(q2))
+                              .attr("y1",yScale(0))
+                              .attr("y2",65)
+                              .attr("stroke-dasharray","5 ,5");
+            let medianText = svg.append("text").attr("id","median-text")
+                              .attr("x",xScale(q2))
+                              .attr("y",60)
+                              .text(`median = ${q2.toFixed(Number(document.getElementById("prec").value))}`);
+
+    		record.push(binArray);
+    		
+            
+    		return binArray;
+    	}
+
+      
+
+        generateSample();
+        update();
+	</script>
+
+
+
+
+
+
+</body>
